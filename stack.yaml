@@ -5,11 +5,16 @@ resolver: lts-8.0
 
 # Local packages, usually specified by relative directory name
 packages:
-- '.'
+- location: '.'
+- location: 
+      git: git@github.com:mebassett/elm-export.git
+      commit: 311a65c167d2e2e767264125cee81b3754f52b6c
+  extra-dep: true
+
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-- elm-export-0.6.0.1
+- meb-elm-export-0.6.0.2
 
 # Override default flag values for local packages and extra-deps
 flags: {}
