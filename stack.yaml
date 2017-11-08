@@ -7,8 +7,8 @@ resolver: lts-8.0
 packages:
 - location: '.'
 - location: 
-      git: git@github.com:mebassett/elm-export.git
-      commit: 311a65c167d2e2e767264125cee81b3754f52b6c
+      git: git@github.com:TriviumRealEstate/meb-elm-export.git
+      commit: HEAD
   extra-dep: true
 
 
