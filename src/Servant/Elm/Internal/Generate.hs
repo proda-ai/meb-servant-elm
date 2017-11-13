@@ -248,9 +248,11 @@ elmQueryArg arg =
   arg ^. F.queryArgName . F.argName . to (stext . F.unPathSegment)
 
 
-elmBodyArg :: Doc
-elmBodyArg =
-  "body"
+elmBodyArg :: F.Req ElmDatatype -> Doc
+elmBodyArg request =
+    case (request ^. F.reqBody) of
+        Just (Elm.ElmPrimitive Elm.ENativeFile) -> "files"
+        _ -> "body"
 
 
 mkArgs
@@ -277,7 +279,7 @@ mkArgs opts request =
       | arg <- request ^. F.reqUrl . F.queryStr
       ]
     , -- Request body
-      maybe [] (const [elmBodyArg]) (request ^. F.reqBody)
+      maybe [] (const [elmBodyArg request]) (request ^. F.reqBody)
     ]
 
 
@@ -371,12 +373,15 @@ mkRequest opts request =
         Nothing ->
           "Http.emptyBody"
 
+        Just (Elm.ElmPrimitive Elm.ENativeFile) ->
+            "(Http.multipartBody (List.map (\\nf -> FileReader.filePart \"file\" nf) files))"
+
         Just elmTypeExpr ->
           let
             encoderName =
               Elm.toElmEncoderRefWith (elmExportOptions opts) elmTypeExpr
           in
-            "Http.jsonBody" <+> parens (stext encoderName <+> elmBodyArg)
+            "Http.jsonBody" <+> parens (stext encoderName <+> (elmBodyArg request))
 
     expect =
       case request ^. F.reqReturnType of
