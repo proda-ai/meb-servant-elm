@@ -12,7 +12,7 @@ import           Data.Text                    (Text)
 import qualified Data.Text                    as T
 import qualified Data.Text.Lazy               as L
 import qualified Data.Text.Encoding           as T
-import           Elm                          (ElmDatatype)
+import           Elm                          (ElmDatatype(..))
 import qualified Elm
 import           Servant.API                  (NoContent (..))
 import           Servant.Elm.Internal.Foreign (LangElm, getEndpoints)
@@ -428,7 +428,11 @@ mkUrl opts segments =
               else
                 " |> toString"
           in
-            (elmCaptureArg s) <> toStringSrc <> " |> Http.encodeUri"
+              case (F.captureArg s ^. F.argType) of
+                ElmHttpIdType name _ field ->
+                  (elmCaptureArg s) <> "." <> (stext field) <> toStringSrc <> " |> Http.encodeUri"
+                _ ->
+                  (elmCaptureArg s) <> toStringSrc <> " |> Http.encodeUri"
 
 
 mkQueryParams
