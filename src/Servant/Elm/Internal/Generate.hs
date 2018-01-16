@@ -6,7 +6,7 @@ module Servant.Elm.Internal.Generate where
 import           Prelude                      hiding ((<$>))
 import           Control.Lens                 (to, (^.))
 import           Data.List                    (nub)
-import           Data.Maybe                   (catMaybes)
+import           Data.Maybe                   (catMaybes, fromMaybe)
 import           Data.Proxy                   (Proxy)
 import           Data.Text                    (Text)
 import qualified Data.Text                    as T
@@ -38,8 +38,8 @@ data ElmOptions = ElmOptions
     -- ^ Options to pass to elm-export
   , emptyResponseElmTypes :: [ElmDatatype]
     -- ^ Types that represent an empty Http response.
-  , stringElmTypes        :: [ElmDatatype]
-    -- ^ Types that represent a String.
+  , elmTypesToString      :: [(ElmDatatype, Text)]
+    -- ^ How to stringify Elm types.
   }
 
 
@@ -71,9 +71,9 @@ defElmOptions = ElmOptions
       [ Elm.toElmType NoContent
       , Elm.toElmType ()
       ]
-  , stringElmTypes =
-      [ Elm.toElmType ("" :: String)
-      , Elm.toElmType ("" :: T.Text)
+  , elmTypesToString =
+      [ (Elm.toElmType ("" :: String), "identity")
+      , (Elm.toElmType ("" :: T.Text), "identity")
       ]
   }
 
@@ -301,15 +301,11 @@ mkLetParams opts request =
       case qarg ^. F.queryArgType of
         F.Normal ->
           let
-            -- Don't use "toString" on Elm Strings, otherwise we get extraneous quotes.
             toStringSrc =
-              if isElmStringType opts (qarg ^. F.queryArgName . F.argType) then
-                ""
-              else
-                "toString >> "
+              elmTypeToString opts (qarg ^. F.queryArgName . F.argType)
           in
               name <$>
-              indent 4 ("|> Maybe.map" <+> parens (toStringSrc <> "Http.encodeUri >> (++)" <+> dquotes (elmName <> equals)) <$>
+              indent 4 ("|> Maybe.map" <+> parens (toStringSrc <> " >> Http.encodeUri >> (++)" <+> dquotes (elmName <> equals)) <$>
                         "|> Maybe.withDefault" <+> dquotes empty)
 
         F.Flag ->
@@ -354,11 +350,8 @@ mkRequest opts request =
 
     headers =
         [("Http.header" <+> dquotes headerName <+>
-                 (if isElmStringType opts (header ^. F.headerArg . F.argType) then
-                     headerArgName
-                   else
-                     parens ("toString " <> headerArgName)
-                  ))
+                 parens (elmTypeToString opts (header ^. F.headerArg . F.argType)
+                         <+> headerArgName))
         | header <- request ^. F.reqHeaders
         , headerName <- [header ^. F.headerArg . F.argName . to (stext . F.unPathSegment)]
         , headerArgName <- [elmHeaderArg header]
@@ -421,18 +414,14 @@ mkUrl opts segments =
           dquotes (stext (F.unPathSegment path))
         F.Cap arg ->
           let
-            -- Don't use "toString" on Elm Strings, otherwise we get extraneous quotes.
             toStringSrc =
-              if isElmStringType opts (arg ^. F.argType) then
-                empty
-              else
-                " |> toString"
+              elmTypeToString opts (arg ^. F.argType)
           in
               case (F.captureArg s ^. F.argType) of
                 ElmHttpIdType name _ field ->
                   (elmCaptureArg s) <> "." <> (stext field) <> toStringSrc <> " |> Http.encodeUri"
                 _ ->
-                  (elmCaptureArg s) <> toStringSrc <> " |> Http.encodeUri"
+                  (elmCaptureArg s) <> " |> " <> toStringSrc <> " |> Http.encodeUri"
 
 
 mkQueryParams
@@ -456,12 +445,15 @@ isEmptyType opts elmTypeExpr =
   elmTypeExpr `elem` emptyResponseElmTypes opts
 
 
-{- | Determines whether we call `toString` on URL captures and query params of
+{- | Determines how we stringify URL captures, query params and headers of
 this type in Elm.
 -}
-isElmStringType :: ElmOptions -> ElmDatatype -> Bool
-isElmStringType opts elmTypeExpr =
-  elmTypeExpr `elem` stringElmTypes opts
+elmTypeToString :: ElmOptions -> ElmDatatype -> Doc
+elmTypeToString opts elmTypeExpr =
+  stext $
+    fromMaybe "toString" $
+    lookup elmTypeExpr $
+    elmTypesToString opts
 
 
 -- Doc helpers
