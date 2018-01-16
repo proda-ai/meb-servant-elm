@@ -10,7 +10,7 @@ getWithaheader header_myStringHeader header_MyIntHeader =
         { method =
             "GET"
         , headers =
-            [ Http.header "myStringHeader" header_myStringHeader
+            [ Http.header "myStringHeader" (identity header_myStringHeader)
             , Http.header "MyIntHeader" (toString header_MyIntHeader)
             ]
         , url =

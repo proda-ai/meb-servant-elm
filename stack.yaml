@@ -6,11 +6,10 @@ resolver: lts-8.0
 # Local packages, usually specified by relative directory name
 packages:
 - location: '.'
-- location: /home/mebassett/Documents/meb-elm-export
-  #- location: 
-  #      git: git@github.com:TriviumRealEstate/meb-elm-export.git
-  #      commit: HEAD
-  #  extra-dep: true
+- location:
+    git: git@github.com:TriviumRealEstate/meb-elm-export.git
+    commit: d307c1e7cfed1df14dfe3793e766f29a0a91094f
+  extra-dep: true
 
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
