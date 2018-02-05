@@ -180,7 +180,7 @@ generateElmForRequest opts request =
               , "|> Task.map Just"
               , "|> Task.onError (always (Task.succeed Nothing))"
               , "|> Task.andThen"
-              , "    (\\msrf -> Http.toTask ( "
+              , "    (\\csrf -> Http.toTask ( "
               , indent (i*3) (mkRequest opts request)
               , indent i "))"])
       else
