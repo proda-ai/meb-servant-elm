@@ -21,6 +21,9 @@ import qualified Servant.Foreign              as F
 import           Text.PrettyPrint.Leijen.Text
 
 
+headerNameCSRF :: String
+headerNameCSRF = "X_XSRF_TOKEN"
+
 {-|
 Options to configure how code is generated.
 -}
@@ -99,6 +102,7 @@ defElmImports =
     , "import Json.Encode"
     , "import Http"
     , "import String"
+    , "import Task"
     ]
 
 
@@ -171,8 +175,24 @@ generateElmForRequest opts request =
       mkLetParams opts request
 
     elmRequest =
-      mkRequest opts request
+      if requestContainsCsrf request then
+        (vsep [ "CsrfCookie.csrfCookie"
+              , "|> Task.onError (always (Task.succeed \"\"))"
+              , "|> Task.andThen"
+              , "    (\\csrf ->"
+              , "        Http.toTask <|"
+              , indent (i*3) (mkRequest opts request)
+              , indent i ")"])
+      else
+        mkRequest opts request
 
+headerIsCsrf :: F.HeaderArg ElmDatatype -> Bool
+headerIsCsrf header =
+    (F.unPathSegment $ header ^. F.headerArg . F.argName) == (T.pack headerNameCSRF)
+
+requestContainsCsrf :: F.Req ElmDatatype -> Bool
+requestContainsCsrf request =
+    any headerIsCsrf $ request ^. F.reqHeaders
 
 mkTypeSignature :: ElmOptions -> F.Req ElmDatatype -> Doc
 mkTypeSignature opts request =
@@ -198,6 +218,7 @@ mkTypeSignature opts request =
     headerTypes =
       [ header ^. F.headerArg . F.argType . to elmTypeRef
       | header <- request ^. F.reqHeaders
+      , not $ headerIsCsrf header
       ]
 
     urlCaptureTypes :: [Doc]
@@ -227,7 +248,10 @@ mkTypeSignature opts request =
     returnType :: Maybe Doc
     returnType = do
       result <- fmap elmTypeRef $ request ^. F.reqReturnType
-      pure ("Http.Request" <+> parens result)
+      pure (if requestContainsCsrf request then
+              "Task.Task Http.Error" <+> parens result
+            else
+              "Http.Request" <+> parens result)
 
 
 elmHeaderArg :: F.HeaderArg ElmDatatype -> Doc
@@ -268,6 +292,7 @@ mkArgs opts request =
     , -- Headers
       [ elmHeaderArg header
       | header <- request ^. F.reqHeaders
+      , not $ headerIsCsrf header
       ]
     , -- URL Captures
       [ elmCaptureArg segment
@@ -350,8 +375,13 @@ mkRequest opts request =
 
     headers =
         [("Http.header" <+> dquotes headerName <+>
+
+                if headerIsCsrf header then
+                    "csrf"
+                else
                  parens (elmTypeToString opts (header ^. F.headerArg . F.argType)
-                         <+> headerArgName))
+                         <+> headerArgName)
+         )
         | header <- request ^. F.reqHeaders
         , headerName <- [header ^. F.headerArg . F.argName . to (stext . F.unPathSegment)]
         , headerArgName <- [elmHeaderArg header]
@@ -418,7 +448,7 @@ mkUrl opts segments =
               elmTypeToString opts (arg ^. F.argType)
           in
               case (F.captureArg s ^. F.argType) of
-                ElmHttpIdType name _ field ->
+                ElmHttpIdType _  _ field ->
                   (elmCaptureArg s) <> "." <> (stext field) <> toStringSrc <> " |> Http.encodeUri"
                 _ ->
                   (elmCaptureArg s) <> " |> " <> toStringSrc <> " |> Http.encodeUri"
