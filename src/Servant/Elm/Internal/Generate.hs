@@ -194,10 +194,7 @@ headerIsCsrf header =
 
 requestContainsCsrf :: F.Req ElmDatatype -> Bool
 requestContainsCsrf request =
-    (length t) > 0
-    where t = [ header
-              | header <- request ^. F.reqHeaders
-              , headerIsCsrf header]
+    any headerIsCsrf $ request ^. F.reqHeaders
 
 mkTypeSignature :: ElmOptions -> F.Req ElmDatatype -> Doc
 mkTypeSignature opts request =
@@ -223,7 +220,7 @@ mkTypeSignature opts request =
     headerTypes =
       [ header ^. F.headerArg . F.argType . to elmTypeRef
       | header <- request ^. F.reqHeaders
-      , (F.unPathSegment $ header ^. F.headerArg . F.argName) /= (T.pack headerNameCSRF)
+      , not $ headerIsCsrf header
       ]
 
     urlCaptureTypes :: [Doc]
@@ -297,7 +294,7 @@ mkArgs opts request =
     , -- Headers
       [ elmHeaderArg header
       | header <- request ^. F.reqHeaders
-      , (F.unPathSegment $ header ^. F.headerArg . F.argName) /= (T.pack headerNameCSRF)
+      , not $ headerIsCsrf header
       ]
     , -- URL Captures
       [ elmCaptureArg segment
@@ -381,14 +378,13 @@ mkRequest opts request =
     headers =
         [("Http.header" <+> dquotes headerName <+>
 
-                if headerNameText == (T.pack headerNameCSRF) then
+                if headerIsCsrf header then
                     "csrf"
                 else
                  parens (elmTypeToString opts (header ^. F.headerArg . F.argType)
                          <+> headerArgName)
          )
         | header <- request ^. F.reqHeaders
-        , headerNameText <- [F.unPathSegment $ header ^. F.headerArg . F.argName]
         , headerName <- [header ^. F.headerArg . F.argName . to (stext . F.unPathSegment)]
         , headerArgName <- [elmHeaderArg header]
         ]
@@ -454,7 +450,7 @@ mkUrl opts segments =
               elmTypeToString opts (arg ^. F.argType)
           in
               case (F.captureArg s ^. F.argType) of
-                ElmHttpIdType name _ field ->
+                ElmHttpIdType _  _ field ->
                   (elmCaptureArg s) <> "." <> (stext field) <> toStringSrc <> " |> Http.encodeUri"
                 _ ->
                   (elmCaptureArg s) <> " |> " <> toStringSrc <> " |> Http.encodeUri"
