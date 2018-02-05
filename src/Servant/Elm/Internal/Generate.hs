@@ -180,11 +180,7 @@ generateElmForRequest opts request =
               , "|> Task.map Just"
               , "|> Task.onError (always (Task.succeed Nothing))"
               , "|> Task.andThen"
-              , "    (\\mcsrf -> "
-              , "     let csrf = case mcsrf of "
-              , "                    Nothing -> \"\""
-              , "                    Just csrf -> csrf"
-              , "     in Http.toTask ( "
+              , "    (\\msrf -> Http.toTask ( "
               , indent (i*3) (mkRequest opts request)
               , indent i "))"])
       else
