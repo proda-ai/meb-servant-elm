@@ -176,7 +176,7 @@ generateElmForRequest opts request =
 
     elmRequest =
       if requestContainsCsrf request then
-        (vsep [ "CsrfCookie.csrfCookie()"
+        (vsep [ "CsrfCookie.csrfCookie"
               , "|> Task.map Just"
               , "|> Task.onError (always (Task.succeed Nothing))"
               , "|> Task.andThen"
