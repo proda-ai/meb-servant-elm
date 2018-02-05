@@ -177,14 +177,12 @@ generateElmForRequest opts request =
     elmRequest =
       if requestContainsCsrf request then
         (vsep [ "CsrfCookie.csrfCookie"
-              , "|> Task.map Just"
-              , "|> Task.onError (always (Task.succeed Nothing))"
+              , "|> Task.onError (always (Task.succeed \"\"))"
               , "|> Task.andThen"
-              , "    (\\mcsrf -> "
-              , "     let csrf = Maybe.withDefault \"\" mcsrf "
-              , "     in Http.toTask ( "
+              , "    (\\csrf ->"
+              , "        Http.toTask <|"
               , indent (i*3) (mkRequest opts request)
-              , indent i "))"])
+              , indent i ")"])
       else
         mkRequest opts request
 
@@ -251,8 +249,8 @@ mkTypeSignature opts request =
     returnType = do
       result <- fmap elmTypeRef $ request ^. F.reqReturnType
       pure (if requestContainsCsrf request then
-              "Task.Task Http.Error " <+> parens result
-            else              
+              "Task.Task Http.Error" <+> parens result
+            else
               "Http.Request" <+> parens result)
 
 
