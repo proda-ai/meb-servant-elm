@@ -485,8 +485,8 @@ isEmptyType opts elmTypeExpr =
   elmTypeExpr `elem` emptyResponseElmTypes opts
 
 
-{- | Determines how we stringify URL captures, query params and headers of
-this type in Elm.
+{- | Determines how we stringify URL captures, query params and headers of this
+type in Elm. Handles simple types, and types wrapped in a single 'Maybe'.
 -}
 elmTypeToString :: ElmOptions -> ElmDatatype -> Doc
 elmTypeToString opts elmTypeExpr =
@@ -494,6 +494,10 @@ elmTypeToString opts elmTypeExpr =
     fromMaybe elmTypeExpr $
     elmExtractMaybeType elmTypeExpr
 
+
+{- | Determines how we stringify URL captures, query params and headers of this
+type in Elm.
+-}
 elmSimpleTypeToString :: ElmOptions -> ElmDatatype -> Doc
 elmSimpleTypeToString opts elmTypeExpr =
   stext $
@@ -501,12 +505,14 @@ elmSimpleTypeToString opts elmTypeExpr =
     lookup elmTypeExpr $
     elmTypesToString opts
 
-{- | Determines whether a type is 'Maybe a' where 'a' is something akin to a 'String'.
+{- | Determines whether a type is 'Maybe a'.
 -}
 isElmMaybeType :: ElmDatatype -> Bool
 isElmMaybeType (ElmPrimitive (EMaybe _)) = True
 isElmMaybeType _ = False
 
+{- | If the elm type is 'Maybe a', returns 'Just a'. Otherwise, returns Nothing.
+-}
 elmExtractMaybeType :: ElmDatatype -> Maybe ElmDatatype
 elmExtractMaybeType (ElmPrimitive (EMaybe x)) = Just x
 elmExtractMaybeType _ = Nothing
