@@ -328,14 +328,13 @@ mkLetParams opts request =
       -- something wrong with indentation here...
       case qarg ^. F.queryArgType of
         F.Normal ->
-          let
-            argType = qarg ^. F.queryArgName . F.argType
-            wrapped = isElmMaybeType argType
-            toStringSrc = elmTypeToString opts argType
-          in
-              (if wrapped then elmName else "Just" <+> elmName) <$>
-              indent 4 ("|> Maybe.map" <+> parens (toStringSrc <+> ">> Http.encodeUri >> (++)" <+> dquotes (name <> equals)) <$>
-                        "|> Maybe.withDefault" <+> dquotes empty)
+            (if wrapped then elmName else "Just" <+> elmName) <$>
+            indent 4
+              ("|> Maybe.map" <+>
+                 parens (toStringFn elmExtractMaybeType <+>
+                         ">> Http.encodeUri >> (++)" <+>
+                         dquotes (name <> equals)) <$>
+               "|> Maybe.withDefault" <+> dquotes empty)
 
         F.Flag ->
             "if" <+> elmName <+> "then" <$>
@@ -345,11 +344,20 @@ mkLetParams opts request =
 
         F.List ->
             elmName <$>
-            indent 4 ("|> List.map" <+> parens (backslash <> "val ->" <+> dquotes (name <> "[]=") <+> "++ (val |> toString |> Http.encodeUri)") <$>
-                      "|> String.join" <+> dquotes "&")
+            indent 4
+              ("|> List.map" <+>
+                 parens (backslash <> "val ->" <+>
+                         dquotes (name <> "[]=") <+>
+                         "++ (val |>" <+>
+                         toStringFn elmExtractListType <+>
+                         "|> Http.encodeUri)") <$>
+               "|> String.join" <+> dquotes "&")
       where
         elmName = elmQueryArg qarg
         name = qarg ^. F.queryArgName . F.argName . to (stext . F.unPathSegment)
+        argType = qarg ^. F.queryArgName . F.argType
+        wrapped = isElmMaybeType argType
+        toStringFn = elmTypeToStringUnwrap opts argType
 
 
 mkRequest :: ElmOptions -> F.Req ElmDatatype -> Doc
@@ -382,7 +390,7 @@ mkRequest opts request =
           headerArgName = elmHeaderArg header
           argType = header ^. F.headerArg . F.argType
           wrapped = isElmMaybeType argType
-          toStringSrc = elmTypeToString opts argType
+          toStringSrc = elmTypeToStringUnwrap opts argType elmExtractMaybeType
       in
         if headerIsCsrf header then
           "Just <| Http.header" <+> dquotes headerName <+> "csrf"
@@ -455,7 +463,7 @@ mkUrl opts segments =
         F.Cap arg ->
           let
             toStringSrc =
-              elmSimpleTypeToString opts (arg ^. F.argType)
+              elmTypeToString opts (arg ^. F.argType)
           in
               case (F.captureArg s ^. F.argType) of
                 ElmHttpIdType _  _ field ->
@@ -490,20 +498,21 @@ type in Elm. Handles simple types, and types wrapped in a single 'Maybe'.
 -}
 elmTypeToString :: ElmOptions -> ElmDatatype -> Doc
 elmTypeToString opts elmTypeExpr =
-  elmSimpleTypeToString opts $
-    fromMaybe elmTypeExpr $
-    elmExtractMaybeType elmTypeExpr
-
-
-{- | Determines how we stringify URL captures, query params and headers of this
-type in Elm.
--}
-elmSimpleTypeToString :: ElmOptions -> ElmDatatype -> Doc
-elmSimpleTypeToString opts elmTypeExpr =
   stext $
     fromMaybe "toString" $
     lookup elmTypeExpr $
     elmTypesToString opts
+
+{- | Determines how we stringify URL captures, query params and headers of this
+type in Elm. The 'unwrap' function can be used to optionally strip out some
+structure.
+-}
+elmTypeToStringUnwrap
+  :: ElmOptions -> ElmDatatype -> (ElmDatatype -> Maybe ElmDatatype) -> Doc
+elmTypeToStringUnwrap opts elmTypeExpr unwrap =
+  elmTypeToString opts $
+    fromMaybe elmTypeExpr $
+    unwrap elmTypeExpr
 
 {- | Determines whether a type is 'Maybe a'.
 -}
@@ -516,6 +525,12 @@ isElmMaybeType _ = False
 elmExtractMaybeType :: ElmDatatype -> Maybe ElmDatatype
 elmExtractMaybeType (ElmPrimitive (EMaybe x)) = Just x
 elmExtractMaybeType _ = Nothing
+
+{- | If the elm type is 'List a', returns 'Just a'. Otherwise, returns Nothing.
+-}
+elmExtractListType :: ElmDatatype -> Maybe ElmDatatype
+elmExtractListType (ElmPrimitive (EList x)) = Just x
+elmExtractListType _ = Nothing
 
 
 -- Doc helpers
