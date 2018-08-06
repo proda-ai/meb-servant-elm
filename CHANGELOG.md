@@ -1,3 +1,11 @@
+0.5.0.0
+-------
+* Fix generation for APIs with response headers.
+* Support Servant's `Optional` and `Required` modifiers for
+  `Header`s and `QueryParam`s (`Header` arguments are now `Maybe`s
+  by default). (phaazon) (#31)
+* Filter out forbidden Cookie header. (xilnocas) (#37)
+
 0.4.0.1
 -------
 * Remove hyphens from generated function names. (servant-foreign-0.10 no longer
