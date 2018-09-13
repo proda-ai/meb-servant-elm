@@ -8,6 +8,7 @@ import           Control.Lens                 (to, (^.))
 import           Data.List                    (nub)
 import           Data.Maybe                   (catMaybes, fromMaybe)
 import           Data.Proxy                   (Proxy)
+import           Data.String                  (IsString)
 import           Data.Text                    (Text)
 import qualified Data.Text                    as T
 import qualified Data.Text.Lazy               as L
@@ -20,9 +21,11 @@ import           Servant.Elm.Internal.Orphans ()
 import qualified Servant.Foreign              as F
 import           Text.PrettyPrint.Leijen.Text
 
-
-headerNameCSRF :: String
-headerNameCSRF = "X_XSRF_TOKEN"
+-- | The name of the XSRF buster header. The backend expects this header to be
+-- sent with value "True". We give it a polymorphic type, because no single type
+-- works everywhere and conversions can be fiddly.
+headerNameXsrfBuster :: IsString a => a
+headerNameXsrfBuster = "X-Xsrf-Buster"
 
 {-|
 Options to configure how code is generated.
@@ -188,7 +191,7 @@ generateElmForRequest opts request =
 
 headerIsCsrf :: F.HeaderArg ElmDatatype -> Bool
 headerIsCsrf header =
-    (F.unPathSegment $ header ^. F.headerArg . F.argName) == (T.pack headerNameCSRF)
+    (F.unPathSegment $ header ^. F.headerArg . F.argName) == (T.pack headerNameXsrfBuster)
 
 requestContainsCsrf :: F.Req ElmDatatype -> Bool
 requestContainsCsrf request =
@@ -393,7 +396,7 @@ mkRequest opts request =
           toStringSrc = elmTypeToStringUnwrap opts argType elmExtractMaybeType
       in
         if headerIsCsrf header then
-          "Just <| Http.header" <+> dquotes headerName <+> "csrf"
+          "Just <| Http.header" <+> dquotes headerName <+> dquotes "True"
         else
           "Maybe.map" <+> parens (("Http.header" <+> dquotes headerName <+> "<<" <+> toStringSrc))
           <+>
