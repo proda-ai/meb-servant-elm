@@ -24,12 +24,14 @@ module Servant.Elm
        , specsToDir
        -- * Convenience re-exports from "Data.Proxy"
        , Proxy(Proxy)
+       , headerNameXsrfBuster
        ) where
 
 import           Servant.Elm.Internal.Generate (ElmOptions (..), UrlPrefix (..),
                                                 defElmImports, defElmOptions,
                                                 generateElmForAPI,
-                                                generateElmForAPIWith)
+                                                generateElmForAPIWith,
+                                                headerNameXsrfBuster)
 
 import           Data.Proxy                    (Proxy (Proxy))
 import           Elm                           (ElmType, Spec (Spec),

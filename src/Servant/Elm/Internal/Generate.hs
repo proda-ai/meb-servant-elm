@@ -9,6 +9,7 @@ import           Data.Int                     (Int32)
 import           Data.List                    (nub)
 import           Data.Maybe                   (catMaybes)
 import           Data.Proxy                   (Proxy)
+import           Data.String                  (IsString)
 import           Data.Text                    (Text)
 import qualified Data.Text                    as T
 import qualified Data.Text.Lazy               as L
@@ -21,6 +22,11 @@ import           Servant.Elm.Internal.Orphans ()
 import qualified Servant.Foreign              as F
 import           Text.PrettyPrint.Leijen.Text
 
+-- | The name of the XSRF buster header. The backend expects this header to be
+-- sent with value "True". We give it a polymorphic type, because no single type
+-- works everywhere and conversions can be fiddly.
+headerNameXsrfBuster :: IsString a => a
+headerNameXsrfBuster = "X-Xsrf-Buster"
 
 {-|
 Options to configure how code is generated.
@@ -204,6 +210,10 @@ generateElmForRequest opts request =
       mkRequest opts request
 
 
+headerIsCsrf :: F.HeaderArg ElmDatatype -> Bool
+headerIsCsrf header =
+    (F.unPathSegment $ header ^. F.headerArg . F.argName) == (T.pack headerNameXsrfBuster)
+
 mkTypeSignature :: ElmOptions -> F.Req ElmDatatype -> Doc
 mkTypeSignature opts request =
   (hsep . punctuate " ->" . concat)
@@ -227,7 +237,7 @@ mkTypeSignature opts request =
     headerTypes :: [Doc]
     headerTypes =
       [ header ^. F.headerArg . F.argType . to elmTypeRef
-      | header <- request ^. F.reqHeaders
+      | header <- request ^. F.reqHeaders, not $ headerIsCsrf header
       ]
 
     urlCaptureTypes :: [Doc]
@@ -294,7 +304,7 @@ mkArgs opts request =
         Static _ -> []
     , -- Headers
       [ elmHeaderArg header
-      | header <- request ^. F.reqHeaders
+      | header <- request ^. F.reqHeaders, not $ headerIsCsrf header
       ]
     , -- URL Captures
       [ elmCaptureArg segment
@@ -375,14 +385,32 @@ mkRequest opts request =
     method =
        request ^. F.reqMethod . to (stext . T.decodeUtf8)
 
+-- <<<<<<< HEAD
+-- =======
+--     mkHeader header =
+--       let headerName = header ^. F.headerArg . F.argName . to (stext . F.unPathSegment)
+--           headerArgName = elmHeaderArg header
+--           argType = header ^. F.headerArg . F.argType
+--           wrapped = isElmMaybeType argType
+--           toStringSrc = elmTypeToStringUnwrap opts argType elmExtractMaybeType
+--       in
+--         if headerIsCsrf header then
+--           "Just <| Http.header" <+> dquotes headerName <+> dquotes "True"
+--         else
+--           "Maybe.map" <+> parens (("Http.header" <+> dquotes headerName <+> "<<" <+> toStringSrc))
+--           <+>
+--           (if wrapped then headerArgName else parens ("Just" <+> headerArgName))
+-- 
+-- >>>>>>> 2e5aceb... Replace XSRF token with XSRF buster.
     headers =
         [ "Http.header" <+> dquotes headerName <+>
-            parens (toStringSrc "" opts (header ^. F.headerArg . F.argType) <> headerArgName)
+            if headerIsCsrf header
+              then dquotes "True"
+              else parens (toStringSrc "" opts (header ^. F.headerArg . F.argType) <> headerArgName)
         | header <- request ^. F.reqHeaders
         , headerName <- [header ^. F.headerArg . F.argName . to (stext . F.unPathSegment)]
         , headerArgName <- [elmHeaderArg header]
         ]
-
     url =
       mkUrl opts (request ^. F.reqUrl . F.path)
        <> mkQueryParams request

@@ -92,7 +92,8 @@ getBooksByBookId capture_bookId =
         { method =
             "GET"
         , headers =
-            []
+            [ Http.header "X-Xsrf-Buster" "True"
+            ]
         , url =
             String.join "/"
                 [ "http://localhost:8000"
