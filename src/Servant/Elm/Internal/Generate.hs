@@ -103,6 +103,8 @@ defElmImports =
     [ "import Json.Decode exposing (..)"
     , "import Json.Decode.Pipeline exposing (..)"
     , "import Json.Encode"
+    , "import Date exposing (Date)"
+    , "import Exts.Json.Decode exposing (decodeDate)"
     , "import Http"
     , "import String"
     , "import Task"
