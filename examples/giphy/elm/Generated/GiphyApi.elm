@@ -26,8 +26,8 @@ decodeGifData =
     succeed GifData
         |> required "image_url" string
 
-getRandom : Maybe (String) -> Maybe (String) -> Http.Request (Http.Response (Gif))
-getRandom query_api_key query_tag =
+getRandom : (Result (Maybe (Http.Metadata, String), Http.Error) (Gif) -> msg) -> Maybe (String) -> Maybe (String) -> Cmd msg
+getRandom toMsg query_api_key query_tag =
     let
         params =
             List.filter (not << String.isEmpty)
@@ -56,14 +56,20 @@ getRandom query_api_key query_tag =
             , body =
                 Http.emptyBody
             , expect =
-                Http.expectStringResponse
+                Http.expectStringResponse toMsg
                     (\res ->
-                        Result.mapError Json.Decode.errorToString
-                            (Result.map
-                                (\body_ -> { url = res.url, status = res.status, headers = res.headers, body = body_ })
-                                (decodeString decodeGif res.body)))
+                        case res of
+                            Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
+                            Http.Timeout_ -> Err (Nothing, Http.Timeout)
+                            Http.NetworkError_ -> Err (Nothing, Http.NetworkError)
+                            Http.BadStatus_ metadata body_ -> Err (Just (metadata, body_), Http.BadStatus metadata.statusCode)
+                            Http.GoodStatus_ metadata body_ ->
+                                (decodeString decodeGif body_)
+                                    |> Result.mapError Json.Decode.errorToString
+                                    |> Result.mapError Http.BadBody
+                                    |> Result.mapError (Tuple.pair (Just (metadata, body_))))
             , timeout =
                 Nothing
-            , withCredentials =
-                False
+            , tracker =
+                Nothing
             }

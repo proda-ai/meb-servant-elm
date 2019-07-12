@@ -1,3 +1,6 @@
 .stack-work
 elm-stuff
 /_test-cache/
+node_modules
+*.sw[a-z]
+*.html

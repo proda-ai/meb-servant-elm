@@ -6,11 +6,11 @@ import Html.Attributes exposing (placeholder, src, value)
 import Html.Events exposing (onClick, onInput, targetValue)
 import Http
 import String
+import Browser
 
 
-main : Program Never Model Msg
 main =
-    Html.program
+    Browser.element
         { init = init
         , view = view
         , update = update
@@ -24,8 +24,8 @@ type alias Model =
     }
 
 
-init : ( Model, Cmd Msg )
-init =
+init : () -> ( Model, Cmd Msg )
+init _ =
     ( { url = Nothing
       , topic = Nothing
       }
@@ -35,7 +35,7 @@ init =
 
 type Msg
     = FetchGif
-    | NewGif (Result Http.Error Api.Gif)
+    | NewGif (Result (Maybe (Http.Metadata, String), Http.Error) Api.Gif)
     | SetTopic String
 
 
@@ -45,8 +45,7 @@ update action model =
         FetchGif ->
             let
                 effects =
-                    Api.getRandom (Just "dc6zaTOxFJmzC") model.topic
-                        |> Http.send NewGif
+                    Api.getRandom NewGif (Just "dc6zaTOxFJmzC") model.topic
             in
                 ( { model
                     | url = Nothing
@@ -54,12 +53,16 @@ update action model =
                 , effects
                 )
 
-        NewGif rGif ->
+        NewGif (Err e) ->
+            let
+                _ = Debug.log "err" <| Debug.toString e
+            in
+                ( model, Cmd.none )
+
+
+        NewGif (Ok rGif) ->
             ( { model
-                | url =
-                    rGif
-                    |> Result.toMaybe
-                    |> Maybe.map (.data >> .image_url)
+                | url = rGif |> .data |> .image_url |> Just
               }
             , Cmd.none
             )
