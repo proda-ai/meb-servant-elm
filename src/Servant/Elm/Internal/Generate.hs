@@ -385,23 +385,6 @@ mkRequest opts request =
     method =
        request ^. F.reqMethod . to (stext . T.decodeUtf8)
 
--- <<<<<<< HEAD
--- =======
---     mkHeader header =
---       let headerName = header ^. F.headerArg . F.argName . to (stext . F.unPathSegment)
---           headerArgName = elmHeaderArg header
---           argType = header ^. F.headerArg . F.argType
---           wrapped = isElmMaybeType argType
---           toStringSrc = elmTypeToStringUnwrap opts argType elmExtractMaybeType
---       in
---         if headerIsCsrf header then
---           "Just <| Http.header" <+> dquotes headerName <+> dquotes "True"
---         else
---           "Maybe.map" <+> parens (("Http.header" <+> dquotes headerName <+> "<<" <+> toStringSrc))
---           <+>
---           (if wrapped then headerArgName else parens ("Just" <+> headerArgName))
--- 
--- >>>>>>> 2e5aceb... Replace XSRF token with XSRF buster.
     headers =
         [ "Http.header" <+> dquotes headerName <+>
             if headerIsCsrf header
@@ -433,7 +416,7 @@ mkRequest opts request =
           let elmConstructor =
                 Elm.toElmTypeRefWith (elmExportOptions opts) elmTypeExpr
           in
-          "Http.stringResolver " <$>
+          "Http.stringResolver" <$>
           indent i (parens (backslash <> "res" <+> "->" <$>
               indent i "case res of" <$>
               indent i (
@@ -454,7 +437,7 @@ mkRequest opts request =
 
 
         Just elmTypeExpr ->
-          "Http.stringResolver " <$>
+          "Http.stringResolver" <$>
           indent i (parens (backslash <> "res" <+> "->" <$>
               indent i "case res of" <$>
               indent i (
