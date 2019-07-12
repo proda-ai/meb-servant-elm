@@ -117,6 +117,7 @@ The default required imports are:
 > import Http
 > import String.Conversions as String
 > import Url
+> import Task
 -}
 defElmImports :: Text
 defElmImports =
@@ -127,6 +128,7 @@ defElmImports =
     , "import Http"
     , "import String.Conversions as String"
     , "import Url"
+    , "import Task"
     ]
 
 
@@ -205,7 +207,7 @@ generateElmForRequest opts request =
 mkTypeSignature :: ElmOptions -> F.Req ElmDatatype -> Doc
 mkTypeSignature opts request =
   (hsep . punctuate " ->" . concat)
-    [ catMaybes [msgType, urlPrefixType]
+    [ catMaybes [urlPrefixType]
     , headerTypes
     , urlCaptureTypes
     , queryTypes
@@ -252,13 +254,10 @@ mkTypeSignature opts request =
     bodyType =
         fmap elmTypeRef $ request ^. F.reqBody
 
-    msgType :: Maybe Doc
-    msgType = do
-      result <- fmap elmTypeRef $ request ^. F.reqReturnType
-      pure (parens ("Result (Maybe (Http.Metadata, String), Http.Error)" <+> parens result <+> "-> msg"))
-
     returnType :: Maybe Doc
-    returnType = pure "Cmd msg"
+    returnType = do
+      result <- fmap elmTypeRef $ request ^. F.reqReturnType
+      pure ("Task.Task (Maybe (Http.Metadata, String), Http.Error)" <+> parens result)
 
 
 elmHeaderArg :: F.HeaderArg ElmDatatype -> Doc
@@ -290,9 +289,7 @@ mkArgs
   -> Doc
 mkArgs opts request =
   (hsep . concat) $
-    [ ["toMsg"]
-    , -- Dynamic url prefix
-      case urlPrefix opts of
+    [ case urlPrefix opts of
         Dynamic -> ["urlBase"]
         Static _ -> []
     , -- Headers
@@ -357,7 +354,7 @@ mkLetParams opts request =
 
 mkRequest :: ElmOptions -> F.Req ElmDatatype -> Doc
 mkRequest opts request =
-  "Http.request" <$>
+  "Http.task" <$>
   indent i
     (elmRecord
        [ "method =" <$>
@@ -369,11 +366,9 @@ mkRequest opts request =
          indent i url
        , "body =" <$>
          indent i body
-       , "expect =" <$>
-         indent i expect
+       , "resolver =" <$>
+         indent i resolver
        , "timeout =" <$>
-         indent i "Nothing"
-       , "tracker =" <$>
          indent i "Nothing"
        ])
   where
@@ -404,13 +399,13 @@ mkRequest opts request =
           in
             "Http.jsonBody" <+> parens (stext encoderName <+> elmBodyArg)
 
-    expect =
+    resolver =
       case request ^. F.reqReturnType of
         Just elmTypeExpr | isEmptyType opts elmTypeExpr ->
           let elmConstructor =
                 Elm.toElmTypeRefWith (elmExportOptions opts) elmTypeExpr
           in
-          "Http.expectStringResponse toMsg" <$>
+          "Http.stringResolver " <$>
           indent i (parens (backslash <> "res" <+> "->" <$>
               indent i "case res of" <$>
               indent i (
@@ -431,7 +426,7 @@ mkRequest opts request =
 
 
         Just elmTypeExpr ->
-          "Http.expectStringResponse toMsg" <$>
+          "Http.stringResolver " <$>
           indent i (parens (backslash <> "res" <+> "->" <$>
               indent i "case res of" <$>
               indent i (

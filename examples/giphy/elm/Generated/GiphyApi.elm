@@ -6,6 +6,7 @@ import Json.Encode
 import Http
 import String.Conversions as String
 import Url
+import Task
 
 
 type alias Gif =
@@ -26,8 +27,8 @@ decodeGifData =
     succeed GifData
         |> required "image_url" string
 
-getRandom : (Result (Maybe (Http.Metadata, String), Http.Error) (Gif) -> msg) -> Maybe (String) -> Maybe (String) -> Cmd msg
-getRandom toMsg query_api_key query_tag =
+getRandom : Maybe (String) -> Maybe (String) -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (Gif)
+getRandom query_api_key query_tag =
     let
         params =
             List.filter (not << String.isEmpty)
@@ -39,7 +40,7 @@ getRandom toMsg query_api_key query_tag =
                     |> Maybe.withDefault ""
                 ]
     in
-        Http.request
+        Http.task
             { method =
                 "GET"
             , headers =
@@ -55,8 +56,8 @@ getRandom toMsg query_api_key query_tag =
                        "?" ++ String.join "&" params
             , body =
                 Http.emptyBody
-            , expect =
-                Http.expectStringResponse toMsg
+            , resolver =
+                Http.stringResolver
                     (\res ->
                         case res of
                             Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
@@ -69,7 +70,5 @@ getRandom toMsg query_api_key query_tag =
                                     |> Result.mapError Http.BadBody
                                     |> Result.mapError (Tuple.pair (Just (metadata, body_))))
             , timeout =
-                Nothing
-            , tracker =
                 Nothing
             }

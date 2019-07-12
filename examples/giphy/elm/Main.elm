@@ -1,12 +1,13 @@
-module Main exposing (..)
+module Main exposing (Model, Msg(..), init, main, update, view)
 
+import Browser
 import Generated.GiphyApi as Api
-import Html exposing (div, img, input, button, text)
+import Html exposing (button, div, img, input, text)
 import Html.Attributes exposing (placeholder, src, value)
 import Html.Events exposing (onClick, onInput, targetValue)
 import Http
 import String
-import Browser
+import Task
 
 
 main =
@@ -35,7 +36,7 @@ init _ =
 
 type Msg
     = FetchGif
-    | NewGif (Result (Maybe (Http.Metadata, String), Http.Error) Api.Gif)
+    | NewGif (Result ( Maybe ( Http.Metadata, String ), Http.Error ) Api.Gif)
     | SetTopic String
 
 
@@ -45,20 +46,20 @@ update action model =
         FetchGif ->
             let
                 effects =
-                    Api.getRandom NewGif (Just "dc6zaTOxFJmzC") model.topic
+                    Task.attempt NewGif <| Api.getRandom (Just "dc6zaTOxFJmzC") model.topic
             in
-                ( { model
-                    | url = Nothing
-                  }
-                , effects
-                )
+            ( { model
+                | url = Nothing
+              }
+            , effects
+            )
 
         NewGif (Err e) ->
             let
-                _ = Debug.log "err" <| Debug.toString e
+                _ =
+                    Debug.log "err" <| Debug.toString e
             in
-                ( model, Cmd.none )
-
+            ( model, Cmd.none )
 
         NewGif (Ok rGif) ->
             ( { model
@@ -72,6 +73,7 @@ update action model =
                 | topic =
                     if String.isEmpty topic then
                         Nothing
+
                     else
                         Just topic
               }
