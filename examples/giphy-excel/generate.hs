@@ -6,7 +6,7 @@
 import qualified Data.Text    as T
 import           Elm          (Options, Spec (Spec), defaultOptions,
                                fieldLabelModifier, specsToDir,
-                               toElmDecoderSourceWith, toElmTypeSourceWith)
+                               toElmDecoderSourceWith, toElmEncoderSourceWith, toElmTypeSourceWith)
 import           GHC.Generics (Generic)
 import           Data.Time.Calendar             ( Day )
 import           Servant.API  ((:>), Get, JSON, QueryParam)
@@ -61,6 +61,7 @@ giphySpec = Spec ["Generated", "GiphyApi"]
                   : toElmTypeSourceWith    options (Proxy :: Proxy Gif)
                   : toElmTypeSourceWith    options (Proxy :: Proxy GifData)
                   : toElmTypeSourceWith    options (Proxy :: Proxy Tags)
+                  : toElmEncoderSourceWith options (Proxy :: Proxy Tags)
                   : toElmDecoderSourceWith options (Proxy :: Proxy Gif)
                   : toElmDecoderSourceWith options (Proxy :: Proxy GifData)
                   : toElmDecoderSourceWith options (Proxy :: Proxy Tags)

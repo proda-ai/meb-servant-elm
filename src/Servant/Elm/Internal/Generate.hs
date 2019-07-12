@@ -120,6 +120,9 @@ The default required imports are:
 > import Json.Decode exposing (..)
 > import Json.Decode.Pipeline exposing (..)
 > import Json.Encode
+> import Date exposing (Date)
+> import Time
+> import Iso8601
 > import Http
 > import String.Conversions as String
 > import Url
@@ -132,7 +135,8 @@ defElmImports =
     , "import Json.Decode.Pipeline exposing (..)"
     , "import Json.Encode"
     , "import Date exposing (Date)"
-    , "import Exts.Json.Decode exposing (decodeDate)"
+    , "import Time"
+    , "import Iso8601"
     , "import Http"
     , "import String.Conversions as String"
     , "import Url"
@@ -343,7 +347,7 @@ mkLetParams opts request =
             toStringSrc' = toStringSrc ">>" opts (qarg ^. F.queryArgName . F.argType)
           in
               name <$>
-              indent 4 ("|> Maybe.map" <+> parens (toStringSrc' <> "Url.percentEncode >> (++)" <+> dquotes (elmName <> equals)) <$>
+              indent 4 ("|> Maybe.map" <+> parens (toStringSrc' <> " Url.percentEncode >> (++)" <+> dquotes (elmName <> equals)) <$>
                         "|> Maybe.withDefault" <+> dquotes empty)
 
         F.Flag ->
@@ -526,7 +530,9 @@ toStringSrcTypes _ opts argType
     | isElmFloatType opts argType = "String.fromFloat"
     | isElmBoolType opts argType  = "String.fromBool" -- We should change this to return `true`/`false` but this mimics the old behavior.
     | isElmCharType opts argType  = "String.fromChar"
-    | otherwise                   = error ("Sorry, we don't support other types than `String`, `Int`, `Float`, `Bool`, and `Char` right now. " <> show argType)
+    | otherwise                   = case argType of
+        (ElmDatatype typStr _) -> "encode" <> typStr <> " >> decodeValue string >> Result.withDefault \"\""
+        _ -> error ("Sorry, we don't support other types than `String`, `Int`, `Float`, `Bool`, and `Char` right now. " <> show argType)
 
 
 {- | Determines whether we call `toString` on URL captures and query params of
