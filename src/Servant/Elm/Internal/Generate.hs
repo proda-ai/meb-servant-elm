@@ -530,9 +530,18 @@ toStringSrcTypes _ opts argType
     | isElmFloatType opts argType = "String.fromFloat"
     | isElmBoolType opts argType  = "String.fromBool" -- We should change this to return `true`/`false` but this mimics the old behavior.
     | isElmCharType opts argType  = "String.fromChar"
+    | isElmDateType opts argType  = "Date.toIsoString"
     | otherwise                   = case argType of
         (ElmDatatype typStr _) -> "encode" <> typStr <> " >> decodeValue string >> Result.withDefault \"\""
         _ -> error ("Sorry, we don't support other types than `String`, `Int`, `Float`, `Bool`, and `Char` right now. " <> show argType)
+
+{- | Determines whether we call `toString` on URL captures and query params of
+this type in Elm.
+-}
+isElmDateType :: ElmOptions -> ElmDatatype -> Bool
+isElmDateType _ (ElmPrimitive (EList (ElmPrimitive EDate))) = True
+isElmDateType _ (ElmPrimitive EDate) = True
+isElmDateType _ _  = False
 
 
 {- | Determines whether we call `toString` on URL captures and query params of
