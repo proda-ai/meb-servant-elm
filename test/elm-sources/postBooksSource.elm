@@ -4,9 +4,9 @@ import String.Conversions as String
 import Http
 
 
-postBooks : (Result (Maybe (Http.Metadata, String), Http.Error) (NoContent) -> msg) -> Book -> Cmd msg
-postBooks toMsg body =
-    Http.request
+postBooks : Book -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (NoContent)
+postBooks body =
+    Http.task
         { method =
             "POST"
         , headers =
@@ -18,8 +18,8 @@ postBooks toMsg body =
                 ]
         , body =
             Http.jsonBody (encodeBook body)
-        , expect =
-            Http.expectStringResponse toMsg
+        , resolver =
+            Http.stringResolver
                 (\res ->
                     case res of
                         Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
@@ -33,7 +33,5 @@ postBooks toMsg body =
                                 Err (Just (metadata, body_), Http.BadBody <| "Expected the response body to be empty, but it was '" ++ body_ ++ "'.")
                             )
         , timeout =
-            Nothing
-        , tracker =
             Nothing
         }

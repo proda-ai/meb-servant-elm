@@ -6,8 +6,8 @@ import Json.Decode exposing (..)
 import Url
 
 
-getBooks : (Result (Maybe (Http.Metadata, String), Http.Error) (List (Book)) -> msg) -> Bool -> Maybe (String) -> Maybe (Int) -> List (Maybe (Bool)) -> Cmd msg
-getBooks toMsg query_published query_sort query_year query_filters =
+getBooks : Bool -> Maybe (String) -> Maybe (Int) -> List (Maybe (Bool)) -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (List (Book))
+getBooks query_published query_sort query_year query_filters =
     let
         params =
             List.filter (not << String.isEmpty)
@@ -16,17 +16,17 @@ getBooks toMsg query_published query_sort query_year query_filters =
                   else
                     ""
                 , query_sort
-                    |> Maybe.map (Url.percentEncode >> (++) "sort=")
+                    |> Maybe.map ( Url.percentEncode >> (++) "sort=")
                     |> Maybe.withDefault ""
                 , query_year
-                    |> Maybe.map (String.fromInt >>Url.percentEncode >> (++) "year=")
+                    |> Maybe.map (String.fromInt >> Url.percentEncode >> (++) "year=")
                     |> Maybe.withDefault ""
                 , query_filters
                     |> List.map (\val -> "query_filters[]=" ++ (val |> Maybe.map (String.fromBool) |> Maybe.withDefault "" |> Url.percentEncode))
                     |> String.join "&"
                 ]
     in
-        Http.request
+        Http.task
             { method =
                 "GET"
             , headers =
@@ -42,8 +42,8 @@ getBooks toMsg query_published query_sort query_year query_filters =
                        "?" ++ String.join "&" params
             , body =
                 Http.emptyBody
-            , expect =
-                Http.expectStringResponse toMsg
+            , resolver =
+                Http.stringResolver
                     (\res ->
                         case res of
                             Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
@@ -56,7 +56,5 @@ getBooks toMsg query_published query_sort query_year query_filters =
                                     |> Result.mapError Http.BadBody
                                     |> Result.mapError (Tuple.pair (Just (metadata, body_))))
             , timeout =
-                Nothing
-            , tracker =
                 Nothing
             }
