@@ -120,27 +120,28 @@ The default required imports are:
 > import Json.Decode exposing (..)
 > import Json.Decode.Pipeline exposing (..)
 > import Json.Encode
-> import Date exposing (Date)
-> import Time
+> import Compat.Date as Date exposing (Date)
+> import Compat.Time as Time
 > import Iso8601
-> import Http
+> import Compat.Http as Http
 > import String.Conversions as String
-> import Url
-> import Task
+> import Url exposing (Url)
+> import Task exposing (Task)
 -}
 defElmImports :: Text
 defElmImports =
   T.unlines
     [ "import Json.Decode exposing (..)"
+    , "import Compat.Json.Decode exposing (..)"
     , "import Json.Decode.Pipeline exposing (..)"
     , "import Json.Encode"
-    , "import Date exposing (Date)"
-    , "import Time"
+    , "import Compat.Date as Date exposing (Date)"
+    , "import Compat.Time as Time"
     , "import Iso8601"
-    , "import Http"
+    , "import Compat.Http as Http"
     , "import String.Conversions as String"
-    , "import Url"
-    , "import Task"
+    , "import Url exposing (Url)"
+    , "import Task exposing (Task)"
     ]
 
 
@@ -255,15 +256,8 @@ mkTypeSignature opts request =
 
     queryTypes :: [Doc]
     queryTypes =
-      [ arg ^. F.queryArgName . F.argType . to (elmTypeRef . wrapper)
+      [ arg ^. F.queryArgName . F.argType . to elmTypeRef
       | arg <- request ^. F.reqUrl . F.queryStr
-      , wrapper <- [
-          case arg ^. F.queryArgType of
-            F.Normal ->
-              Elm.ElmPrimitive . Elm.EMaybe
-            _ ->
-              id
-          ]
       ]
 
     bodyType :: Maybe Doc
@@ -273,7 +267,7 @@ mkTypeSignature opts request =
     returnType :: Maybe Doc
     returnType = do
       result <- fmap elmTypeRef $ request ^. F.reqReturnType
-      pure ("Task.Task (Maybe (Http.Metadata, String), Http.Error)" <+> parens result)
+      pure ("Task Http.Error" <+> parens result)
 
 
 elmHeaderArg :: F.HeaderArg ElmDatatype -> Doc
@@ -344,11 +338,21 @@ mkLetParams opts request =
       case qarg ^. F.queryArgType of
         F.Normal ->
           let
-            toStringSrc' = toStringSrc ">>" opts (qarg ^. F.queryArgName . F.argType)
+            dt = (qarg ^. F.queryArgName . F.argType)
+
+            toStringSrc' =  toStringSrc ">>" opts
+
+--    ElmPrimitive (EMaybe argType) -> toStringSrc ">>" opts argType
+--                 _ -> error ("QueryParams should be wrapped inside a Maybe type=" <> show dt)
           in
-              name <$>
-              indent 4 ("|> Maybe.map" <+> parens (toStringSrc' <> " Url.percentEncode >> (++)" <+> dquotes (elmName <> equals)) <$>
-                        "|> Maybe.withDefault" <+> dquotes empty)
+            case dt of
+                ElmPrimitive (EMaybe argType) ->
+                    name <$>
+                    indent 4 ("|> Maybe.map" <+> parens (toStringSrc' argType <> " Url.percentEncode >> (++)" <+> dquotes (elmName <> equals)) <$>
+                                "|> Maybe.withDefault" <+> dquotes empty)
+                _ ->
+                    name <$>
+                    indent 4 ("|> " <+> toStringSrc' dt <> " Url.percentEncode >> (++)" <+> dquotes (elmName <> equals))
 
         F.Flag ->
             "if" <+> name <+> "then" <$>
@@ -409,6 +413,9 @@ mkRequest opts request =
         Nothing ->
           "Http.emptyBody"
 
+        Just (Elm.ElmPrimitive Elm.EFile) ->
+          parens "Http.multipartBody (List.map (\\nf -> Http.filePart \"file\" nf) body)"
+
         Just elmTypeExpr ->
           let
             encoderName =
@@ -426,17 +433,17 @@ mkRequest opts request =
           indent i (parens (backslash <> "res" <+> "->" <$>
               indent i "case res of" <$>
               indent i (
-                indent i "Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)" <$>
-                indent i "Http.Timeout_ -> Err (Nothing, Http.Timeout)" <$>
-                indent i "Http.NetworkError_ -> Err (Nothing, Http.NetworkError)" <$>
-                indent i "Http.BadStatus_ metadata body_ -> Err (Just (metadata, body_), Http.BadStatus metadata.statusCode)" <$>
+                indent i "Http.BadUrl_ url -> Err (Http.BadUrl url)" <$>
+                indent i "Http.Timeout_ -> Err (Http.Timeout)" <$>
+                indent i "Http.NetworkError_ -> Err (Http.NetworkError)" <$>
+                indent i "Http.BadStatus_ metadata body_ -> Err (Http.BadStatus metadata.statusCode)" <$>
 
                 indent i "Http.GoodStatus_ metadata body_ ->" <$>
                 indent i (
                 indent i ("if String.isEmpty body_ then" <$>
                   indent i "Ok" <+> (parens (stext elmConstructor)) <$>
                   "else" <$>
-                  indent i ("Err" <+> (parens ("Just (metadata, body_)," <+> "Http.BadBody <|"
+                  indent i ("Err" <+> (parens ("Http.BadBody <|"
                     <+> dquotes "Expected the response body to be empty, but it was '" <+> "++" <+> "body_" <+> "++" <+> dquotes "'."))) <> line)
                 ))))
 
@@ -447,18 +454,17 @@ mkRequest opts request =
           indent i (parens (backslash <> "res" <+> "->" <$>
               indent i "case res of" <$>
               indent i (
-                indent i "Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)" <$>
-                indent i "Http.Timeout_ -> Err (Nothing, Http.Timeout)" <$>
-                indent i "Http.NetworkError_ -> Err (Nothing, Http.NetworkError)" <$>
-                indent i "Http.BadStatus_ metadata body_ -> Err (Just (metadata, body_), Http.BadStatus metadata.statusCode)" <$>
+                indent i "Http.BadUrl_ url -> Err (Http.BadUrl url)" <$>
+                indent i "Http.Timeout_ -> Err (Http.Timeout)" <$>
+                indent i "Http.NetworkError_ -> Err (Http.NetworkError)" <$>
+                indent i "Http.BadStatus_ metadata body_ -> Err (Http.BadStatus metadata.statusCode)" <$>
 
                 indent i "Http.GoodStatus_ metadata body_ ->" <$>
                 indent i (
-                indent i (parens ("decodeString" <+> stext (Elm.toElmDecoderRefWith (elmExportOptions opts) elmTypeExpr) <+> "body_")) <$>
+                indent i (parens ("decodeString_" <+> stext (Elm.toElmDecoderRefWith (elmExportOptions opts) elmTypeExpr) <+> "body_")) <$>
                 indent i (
-                  indent i "|> Result.mapError Json.Decode.errorToString" <$>
-                  indent i "|> Result.mapError Http.BadBody" <$>
-                  indent i "|> Result.mapError (Tuple.pair (Just (metadata, body_)))"
+                  indent i "|> Result.mapError errorToString" <$>
+                  indent i "|> Result.mapError Http.BadBody"
                 )))))
 
         Nothing ->
@@ -519,7 +525,7 @@ toStringSrc operator opts argType
 
 
 toStringSrcTypes :: T.Text -> ElmOptions -> ElmDatatype -> T.Text
-toStringSrcTypes operator opts (ElmPrimitive (EMaybe argType)) = "Maybe.map (" <> toStringSrcTypes operator opts argType <> ") |> Maybe.withDefault \"\""
+toStringSrcTypes operator opts (ElmPrimitive (EMaybe argType)) = "Maybe.map (" <> toStringSrcTypes operator opts argType <> ") >> Maybe.withDefault \"\""
  -- [Char] == String so we can just use identity here.
  -- We can't return `""` here, because this string might be nested in a `Maybe` or `List`.
 toStringSrcTypes _ _ (ElmPrimitive (EList (ElmPrimitive EChar))) = "identity"
@@ -532,7 +538,7 @@ toStringSrcTypes _ opts argType
     | isElmCharType opts argType  = "String.fromChar"
     | isElmDateType opts argType  = "Date.toIsoString"
     | otherwise                   = case argType of
-        (ElmDatatype typStr _) -> "encode" <> typStr <> " >> decodeValue string >> Result.withDefault \"\""
+        (ElmDatatype typStr _) -> "encode" <> typStr <> " >> decodeValue_ string >> Result.withDefault \"\""
         _ -> error ("Sorry, we don't support other types than `String`, `Int`, `Float`, `Bool`, and `Char` right now. " <> show argType)
 
 {- | Determines whether we call `toString` on URL captures and query params of
