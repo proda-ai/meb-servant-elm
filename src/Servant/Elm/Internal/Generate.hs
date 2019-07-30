@@ -342,8 +342,6 @@ mkLetParams opts request =
 
             toStringSrc' =  toStringSrc ">>" opts
 
---    ElmPrimitive (EMaybe argType) -> toStringSrc ">>" opts argType
---                 _ -> error ("QueryParams should be wrapped inside a Maybe type=" <> show dt)
           in
             case dt of
                 ElmPrimitive (EMaybe argType) ->
