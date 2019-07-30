@@ -9,8 +9,8 @@ packages:
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 - location:
-    ../meb-export-http-18
-  extra-dep: true
+  - git: git@github.com:proda-ai/meb-elm-export.git
+    commit: 5978897d79e0f0106fd7a8bf79e4a78bc8c08c67
 
 #    git: git@github.com:NoRedInk/elm-export
 #    commit: a6b7a9a315bd24cde663012fcbb5fd35d1129a72
