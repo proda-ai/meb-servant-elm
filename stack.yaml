@@ -9,10 +9,8 @@ packages:
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 - location:
-   ../meb-export-http-18
-  
-#  - git: git@github.com:proda-ai/meb-elm-export.git
-#    commit: 05b3070edd3f3f3437c9af8e5cd7c4cd2a1aad07
+  - git: git@github.com:proda-ai/meb-elm-export.git
+    commit: 92342335c770a4f99d0bba465d9ff30a1c7e76fa
 
 # Override default flag values for local packages and extra-deps
 flags: {}
