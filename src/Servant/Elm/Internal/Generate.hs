@@ -519,33 +519,7 @@ toStringSrc operator opts argType
   -- Don't use "toString" on Elm Strings, otherwise we get extraneous quotes.
   -- We don't append an operator in this case
   | isElmStringType opts argType = stext ""
-  | otherwise                    = stext $ toStringSrcTypes operator opts argType <> " " <> operator
-
-
-toStringSrcTypes :: T.Text -> ElmOptions -> ElmDatatype -> T.Text
-toStringSrcTypes operator opts (ElmPrimitive (EMaybe argType)) = "Maybe.map (" <> toStringSrcTypes operator opts argType <> ") >> Maybe.withDefault \"\""
- -- [Char] == String so we can just use identity here.
- -- We can't return `""` here, because this string might be nested in a `Maybe` or `List`.
-toStringSrcTypes _ _ (ElmPrimitive (EList (ElmPrimitive EChar))) = "identity"
-toStringSrcTypes operator opts (ElmPrimitive (EList argType)) = toStringSrcTypes operator opts argType
-toStringSrcTypes _ opts argType
-    | isElmStringType opts argType   = "identity"
-    | isElmIntType opts argType   = "String.fromInt"
-    | isElmFloatType opts argType = "String.fromFloat"
-    | isElmBoolType opts argType  = "String.fromBool" -- We should change this to return `true`/`false` but this mimics the old behavior.
-    | isElmCharType opts argType  = "String.fromChar"
-    | isElmDateType opts argType  = "Date.toIsoString"
-    | otherwise                   = case argType of
-        (ElmDatatype typStr _) -> "encode" <> typStr <> " >> decodeValue_ string >> Result.withDefault \"\""
-        _ -> error ("Sorry, we don't support other types than `String`, `Int`, `Float`, `Bool`, and `Char` right now. " <> show argType)
-
-{- | Determines whether we call `toString` on URL captures and query params of
-this type in Elm.
--}
-isElmDateType :: ElmOptions -> ElmDatatype -> Bool
-isElmDateType _ (ElmPrimitive (EList (ElmPrimitive EDate))) = True
-isElmDateType _ (ElmPrimitive EDate) = True
-isElmDateType _ _  = False
+  | otherwise                    = stext $ (Elm.toElmStringFromRefWith (elmExportOptions opts) argType) <> " " <> operator
 
 
 {- | Determines whether we call `toString` on URL captures and query params of
@@ -555,36 +529,6 @@ isElmStringType :: ElmOptions -> ElmDatatype -> Bool
 isElmStringType _ (ElmPrimitive (EList (ElmPrimitive EChar))) = True
 isElmStringType opts elmTypeExpr =
   elmTypeExpr `elem` stringElmTypes opts
-
-
-{- | Determines whether we call `String.fromInt` on URL captures and query params of this type in Elm.
--}
-isElmIntType :: ElmOptions -> ElmDatatype -> Bool
-isElmIntType opts elmTypeExpr =
-  elmTypeExpr `elem` intElmTypes opts
-
-
-{- | Determines whether we call `String.fromFloat` on URL captures and query params of
-this type in Elm.
--}
-isElmFloatType :: ElmOptions -> ElmDatatype -> Bool
-isElmFloatType opts elmTypeExpr =
-  elmTypeExpr `elem` floatElmTypes opts
-
-
-{- | Determines whether we convert to `true` or `false`
--}
-isElmBoolType :: ElmOptions -> ElmDatatype -> Bool
-isElmBoolType opts elmTypeExpr =
-  elmTypeExpr `elem` boolElmTypes opts
-
-{- | Determines whether we call `String.fromChar` on URL captures and query params of
-this type in Elm.
--}
-isElmCharType :: ElmOptions -> ElmDatatype -> Bool
-isElmCharType opts elmTypeExpr =
-  elmTypeExpr `elem` charElmTypes opts
-
 
 -- Doc helpers
 
