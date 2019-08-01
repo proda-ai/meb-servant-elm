@@ -459,7 +459,7 @@ mkRequest opts request =
 
                 indent i "Http.GoodStatus_ metadata body_ ->" <$>
                 indent i (
-                indent i (parens ("decodeString_" <+> stext (Elm.toElmDecoderRefWith (elmExportOptions opts) elmTypeExpr) <+> "body_")) <$>
+                indent i (parens ("decodeString" <+> stext (Elm.toElmDecoderRefWith (elmExportOptions opts) elmTypeExpr) <+> "body_")) <$>
                 indent i (
                   indent i "|> Result.mapError errorToString" <$>
                   indent i "|> Result.mapError Http.BadBody"
