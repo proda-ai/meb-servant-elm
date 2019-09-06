@@ -6,10 +6,11 @@
 import           Elm          (Spec (Spec), specsToDir, toElmDecoderSource,
                                toElmEncoderSource, toElmTypeSource)
 import           GHC.Generics (Generic)
-import           Servant.API  ((:<|>), (:>), Capture, Get, JSON, Post, ReqBody)
+import           Servant.API  ((:<|>), (:>), Capture, Get, JSON, Post, ReqBody, Header)
 import           Servant.Elm  (ElmOptions (..), ElmType, Proxy (Proxy),
                                UrlPrefix (Static), defElmImports, defElmOptions,
                                generateElmForAPIWith)
+import           Data.Text (Text)
 
 data Book = Book
   { name :: String
@@ -17,9 +18,8 @@ data Book = Book
 
 instance ElmType Book
 
-type BooksApi = "books" :> ReqBody '[JSON] Book :> Post '[JSON] Book
-           :<|> "books" :> Get '[JSON] [Book]
-           :<|> "books" :> Capture "bookId" Int :> Get '[JSON] Book
+type BooksApi
+   = "books" :> ReqBody '[ JSON] Book :> Post '[ JSON] Book :<|> "books" :> Get '[ JSON] [Book] :<|> "books" :> Capture "bookId" Int :> Header "X-Xsrf-Buster" Text :> Get '[ JSON] Book
 
 myElmOpts :: ElmOptions
 myElmOpts = defElmOptions { urlPrefix = Static "http://localhost:8000" }

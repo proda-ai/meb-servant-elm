@@ -1,17 +1,16 @@
-module Main exposing (Model, Msg(..), init, main, update, view)
+module Main exposing (..)
 
-import Browser
 import Generated.GiphyApi as Api
-import Html exposing (button, div, img, input, text)
+import Html exposing (div, img, input, button, text)
 import Html.Attributes exposing (placeholder, src, value)
 import Html.Events exposing (onClick, onInput, targetValue)
 import Http
 import String
-import Task
 
 
+main : Program Never Model Msg
 main =
-    Browser.element
+    Html.program
         { init = init
         , view = view
         , update = update
@@ -25,8 +24,8 @@ type alias Model =
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : ( Model, Cmd Msg )
+init =
     ( { url = Nothing
       , topic = Nothing
       }
@@ -36,7 +35,7 @@ init _ =
 
 type Msg
     = FetchGif
-    | NewGif (Result ( Maybe ( Http.Metadata, String ), Http.Error ) Api.Gif)
+    | NewGif (Result Http.Error Api.Gif)
     | SetTopic String
 
 
@@ -46,24 +45,21 @@ update action model =
         FetchGif ->
             let
                 effects =
-                    Task.attempt NewGif <| Api.getRandom (Just "dc6zaTOxFJmzC") model.topic
+                    Api.getRandom (Just "dc6zaTOxFJmzC") model.topic
+                        |> Http.send NewGif
             in
-            ( { model
-                | url = Nothing
-              }
-            , effects
-            )
+                ( { model
+                    | url = Nothing
+                  }
+                , effects
+                )
 
-        NewGif (Err e) ->
-            let
-                _ =
-                    Debug.log "err" <| Debug.toString e
-            in
-            ( model, Cmd.none )
-
-        NewGif (Ok rGif) ->
+        NewGif rGif ->
             ( { model
-                | url = rGif |> .data |> .image_url |> Just
+                | url =
+                    rGif
+                    |> Result.toMaybe
+                    |> Maybe.map (.data >> .image_url)
               }
             , Cmd.none
             )
@@ -73,7 +69,6 @@ update action model =
                 | topic =
                     if String.isEmpty topic then
                         Nothing
-
                     else
                         Just topic
               }

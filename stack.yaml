@@ -9,8 +9,8 @@ packages:
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-- git: git@github.com:TriviumRealEstate/meb-elm-export.git
-  commit: d307c1e7cfed1df14dfe3793e766f29a0a91094f
+  - git: git@github.com:proda-ai/meb-elm-export.git
+    commit: 4ca98d3dcd2312a1458beca0148db62e663876b3
 
 # Override default flag values for local packages and extra-deps
 flags: {}

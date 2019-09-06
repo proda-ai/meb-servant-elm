@@ -4,7 +4,9 @@ import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 import Json.Encode
 import Http
-import String
+import String.Conversions as String
+import Url
+import Task
 
 
 type alias Book =
@@ -13,7 +15,7 @@ type alias Book =
 
 decodeBook : Decoder Book
 decodeBook =
-    decode Book
+    succeed Book
         |> required "name" string
 
 encodeBook : Book -> Json.Encode.Value
@@ -22,9 +24,9 @@ encodeBook x =
         [ ( "name", Json.Encode.string x.name )
         ]
 
-postBooks : Book -> Http.Request (Book)
+postBooks : Book -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (Book)
 postBooks body =
-    Http.request
+    Http.task
         { method =
             "POST"
         , headers =
@@ -36,17 +38,26 @@ postBooks body =
                 ]
         , body =
             Http.jsonBody (encodeBook body)
-        , expect =
-            Http.expectJson decodeBook
+        , resolver =
+            Http.stringResolver 
+                (\res ->
+                    case res of
+                        Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
+                        Http.Timeout_ -> Err (Nothing, Http.Timeout)
+                        Http.NetworkError_ -> Err (Nothing, Http.NetworkError)
+                        Http.BadStatus_ metadata body_ -> Err (Just (metadata, body_), Http.BadStatus metadata.statusCode)
+                        Http.GoodStatus_ metadata body_ ->
+                            (decodeString decodeBook body_)
+                                |> Result.mapError Json.Decode.errorToString
+                                |> Result.mapError Http.BadBody
+                                |> Result.mapError (Tuple.pair (Just (metadata, body_))))
         , timeout =
             Nothing
-        , withCredentials =
-            False
         }
 
-getBooks : Http.Request (List (Book))
+getBooks : Task.Task (Maybe (Http.Metadata, String), Http.Error) (List (Book))
 getBooks =
-    Http.request
+    Http.task
         { method =
             "GET"
         , headers =
@@ -58,33 +69,52 @@ getBooks =
                 ]
         , body =
             Http.emptyBody
-        , expect =
-            Http.expectJson (list decodeBook)
+        , resolver =
+            Http.stringResolver 
+                (\res ->
+                    case res of
+                        Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
+                        Http.Timeout_ -> Err (Nothing, Http.Timeout)
+                        Http.NetworkError_ -> Err (Nothing, Http.NetworkError)
+                        Http.BadStatus_ metadata body_ -> Err (Just (metadata, body_), Http.BadStatus metadata.statusCode)
+                        Http.GoodStatus_ metadata body_ ->
+                            (decodeString (list decodeBook) body_)
+                                |> Result.mapError Json.Decode.errorToString
+                                |> Result.mapError Http.BadBody
+                                |> Result.mapError (Tuple.pair (Just (metadata, body_))))
         , timeout =
             Nothing
-        , withCredentials =
-            False
         }
 
-getBooksByBookId : Int -> Http.Request (Book)
+getBooksByBookId : Int -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (Book)
 getBooksByBookId capture_bookId =
-    Http.request
+    Http.task
         { method =
             "GET"
         , headers =
-            []
+            [ Http.header "X-Xsrf-Buster" "True"
+            ]
         , url =
             String.join "/"
                 [ "http://localhost:8000"
                 , "books"
-                , capture_bookId |> toString |> Http.encodeUri
+                , capture_bookId |> String.fromInt |> Url.percentEncode
                 ]
         , body =
             Http.emptyBody
-        , expect =
-            Http.expectJson decodeBook
+        , resolver =
+            Http.stringResolver 
+                (\res ->
+                    case res of
+                        Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
+                        Http.Timeout_ -> Err (Nothing, Http.Timeout)
+                        Http.NetworkError_ -> Err (Nothing, Http.NetworkError)
+                        Http.BadStatus_ metadata body_ -> Err (Just (metadata, body_), Http.BadStatus metadata.statusCode)
+                        Http.GoodStatus_ metadata body_ ->
+                            (decodeString decodeBook body_)
+                                |> Result.mapError Json.Decode.errorToString
+                                |> Result.mapError Http.BadBody
+                                |> Result.mapError (Tuple.pair (Just (metadata, body_))))
         , timeout =
             Nothing
-        , withCredentials =
-            False
         }

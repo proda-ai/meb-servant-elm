@@ -1,5 +1,5 @@
 name:                meb-servant-elm
-version:             0.5.0.0
+version:             0.5.0.3
 synopsis:            Automatically derive Elm functions to query servant webservices.
 description:         Please see README.md
 homepage:            http://github.com/mattjbray/servant-elm#readme
@@ -13,7 +13,6 @@ build-type:          Simple
 extra-source-files:
   CHANGELOG.md
   README.md
-  test/elm-sources/elm-package.json
   test/elm-sources/*.elm
 cabal-version:       >=1.10
 
@@ -32,7 +31,7 @@ library
                      , Servant.Elm.Internal.Generate
                      , Servant.Elm.Internal.Orphans
   build-depends:       base >= 4.7 && < 5
-                     , meb-elm-export      >= 0.5
+                     , meb-elm-export
                      , lens
                      , servant         >= 0.8
                      , servant-foreign >= 0.8

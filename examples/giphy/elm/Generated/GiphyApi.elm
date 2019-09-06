@@ -4,7 +4,9 @@ import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 import Json.Encode
 import Http
-import String
+import String.Conversions as String
+import Url
+import Task
 
 
 type alias Gif =
@@ -17,28 +19,28 @@ type alias GifData =
 
 decodeGif : Decoder Gif
 decodeGif =
-    decode Gif
+    succeed Gif
         |> required "data" decodeGifData
 
 decodeGifData : Decoder GifData
 decodeGifData =
-    decode GifData
+    succeed GifData
         |> required "image_url" string
 
-getRandom : Maybe (String) -> Maybe (String) -> Http.Request (Gif)
+getRandom : Maybe (String) -> Maybe (String) -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (Gif)
 getRandom query_api_key query_tag =
     let
         params =
             List.filter (not << String.isEmpty)
                 [ query_api_key
-                    |> Maybe.map (Http.encodeUri >> (++) "api_key=")
+                    |> Maybe.map (Url.percentEncode >> (++) "api_key=")
                     |> Maybe.withDefault ""
                 , query_tag
-                    |> Maybe.map (Http.encodeUri >> (++) "tag=")
+                    |> Maybe.map (Url.percentEncode >> (++) "tag=")
                     |> Maybe.withDefault ""
                 ]
     in
-        Http.request
+        Http.task
             { method =
                 "GET"
             , headers =
@@ -54,10 +56,19 @@ getRandom query_api_key query_tag =
                        "?" ++ String.join "&" params
             , body =
                 Http.emptyBody
-            , expect =
-                Http.expectJson decodeGif
+            , resolver =
+                Http.stringResolver
+                    (\res ->
+                        case res of
+                            Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
+                            Http.Timeout_ -> Err (Nothing, Http.Timeout)
+                            Http.NetworkError_ -> Err (Nothing, Http.NetworkError)
+                            Http.BadStatus_ metadata body_ -> Err (Just (metadata, body_), Http.BadStatus metadata.statusCode)
+                            Http.GoodStatus_ metadata body_ ->
+                                (decodeString decodeGif body_)
+                                    |> Result.mapError Json.Decode.errorToString
+                                    |> Result.mapError Http.BadBody
+                                    |> Result.mapError (Tuple.pair (Just (metadata, body_))))
             , timeout =
                 Nothing
-            , withCredentials =
-                False
             }
