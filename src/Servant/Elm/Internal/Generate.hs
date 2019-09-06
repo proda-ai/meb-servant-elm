@@ -135,10 +135,10 @@ defElmImports =
     , "import Compat.Json.Decode exposing (..)"
     , "import Json.Decode.Pipeline exposing (..)"
     , "import Json.Encode"
-    , "import Compat.Date as Date exposing (Date)"
-    , "import Compat.Time as Time"
+    , "import Date exposing (Date)"
+    , "import Time"
     , "import Iso8601"
-    , "import Compat.Http as Http"
+    , "import Http as Http"
     , "import String.Conversions as String"
     , "import Url exposing (Url)"
     , "import Task exposing (Task)"
@@ -402,6 +402,7 @@ mkRequest opts request =
         , headerName <- [header ^. F.headerArg . F.argName . to (stext . F.unPathSegment)]
         , headerArgName <- [elmHeaderArg header]
         ]
+
     url =
       mkUrl opts (request ^. F.reqUrl . F.path)
        <> mkQueryParams request

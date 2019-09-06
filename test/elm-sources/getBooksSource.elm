@@ -12,7 +12,7 @@ getBooks query_published query_sort query_year query_filters =
         params =
             List.filter (not << String.isEmpty)
                 [ if query_published then
-                    "query_published="
+                    "published="
                   else
                     ""
                 , query_sort
@@ -20,6 +20,9 @@ getBooks query_published query_sort query_year query_filters =
                     |> Maybe.withDefault ""
                 , query_year
                     |> Maybe.map (String.fromInt >> Url.percentEncode >> (++) "year=")
+                    |> Maybe.withDefault ""
+                , Just query_category
+                    |> Maybe.map (identity >> Http.encodeUri >> (++) "category=")
                     |> Maybe.withDefault ""
                 , query_filters
                     |> List.map (\val -> "query_filters[]=" ++ (val |> Maybe.map (String.fromBool) |> Maybe.withDefault "" |> Url.percentEncode))
