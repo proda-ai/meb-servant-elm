@@ -4,9 +4,9 @@ import String.Conversions as String
 import Http
 
 
-getNothing : (Result (Maybe (Http.Metadata, String), Http.Error) (NoContent) -> msg) -> Cmd msg
-getNothing toMsg =
-    Http.request
+getNothing : Task.Task (Maybe (Http.Metadata, String), Http.Error) (NoContent)
+getNothing =
+    Http.task
         { method =
             "GET"
         , headers =
@@ -18,8 +18,8 @@ getNothing toMsg =
                 ]
         , body =
             Http.emptyBody
-        , expect =
-            Http.expectStringResponse toMsg
+        , resolver =
+            Http.stringResolver
                 (\res ->
                     case res of
                         Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
@@ -33,7 +33,5 @@ getNothing toMsg =
                                 Err (Just (metadata, body_), Http.BadBody <| "Expected the response body to be empty, but it was '" ++ body_ ++ "'.")
                             )
         , timeout =
-            Nothing
-        , tracker =
             Nothing
         }

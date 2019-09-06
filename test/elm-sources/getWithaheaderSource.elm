@@ -5,9 +5,9 @@ import String.Conversions as String
 import Json.Decode exposing (..)
 
 
-getWithaheader : (Result (Maybe (Http.Metadata, String), Http.Error) (String) -> msg) -> String -> Int -> Cmd msg
-getWithaheader toMsg header_myStringHeader header_MyIntHeader =
-    Http.request
+getWithaheader : String -> Int -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (String)
+getWithaheader header_myStringHeader header_MyIntHeader =
+    Http.task
         { method =
             "GET"
         , headers =
@@ -21,8 +21,8 @@ getWithaheader toMsg header_myStringHeader header_MyIntHeader =
                 ]
         , body =
             Http.emptyBody
-        , expect =
-            Http.expectStringResponse toMsg
+        , resolver =
+            Http.stringResolver
                 (\res ->
                     case res of
                         Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
@@ -35,7 +35,5 @@ getWithaheader toMsg header_myStringHeader header_MyIntHeader =
                                 |> Result.mapError Http.BadBody
                                 |> Result.mapError (Tuple.pair (Just (metadata, body_))))
         , timeout =
-            Nothing
-        , tracker =
             Nothing
         }

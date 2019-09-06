@@ -6,9 +6,9 @@ import Json.Decode exposing (..)
 import Json.Encode
 
 
-postTwo : (Result (Maybe (Http.Metadata, String), Http.Error) (Maybe (Int)) -> msg) -> String -> Cmd msg
-postTwo toMsg body =
-    Http.request
+postTwo : String -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (Maybe (Int))
+postTwo body =
+    Http.task
         { method =
             "POST"
         , headers =
@@ -20,8 +20,8 @@ postTwo toMsg body =
                 ]
         , body =
             Http.jsonBody (Json.Encode.string body)
-        , expect =
-            Http.expectStringResponse toMsg
+        , resolver =
+            Http.stringResolver
                 (\res ->
                     case res of
                         Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
@@ -34,7 +34,5 @@ postTwo toMsg body =
                                 |> Result.mapError Http.BadBody
                                 |> Result.mapError (Tuple.pair (Just (metadata, body_))))
         , timeout =
-            Nothing
-        , tracker =
             Nothing
         }

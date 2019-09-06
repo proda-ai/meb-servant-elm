@@ -5,9 +5,9 @@ import String.Conversions as String
 import Url
 
 
-getBooksByTitle : (Result (Maybe (Http.Metadata, String), Http.Error) (Book) -> msg) -> String -> Cmd msg
-getBooksByTitle toMsg capture_title =
-    Http.request
+getBooksByTitle : String -> Task.Task (Maybe (Http.Metadata, String), Http.Error) (Book)
+getBooksByTitle capture_title =
+    Http.task
         { method =
             "GET"
         , headers =
@@ -20,8 +20,8 @@ getBooksByTitle toMsg capture_title =
                 ]
         , body =
             Http.emptyBody
-        , expect =
-            Http.expectStringResponse toMsg
+        , resolver =
+            Http.stringResolver
                 (\res ->
                     case res of
                         Http.BadUrl_ url -> Err (Nothing, Http.BadUrl url)
@@ -34,7 +34,5 @@ getBooksByTitle toMsg capture_title =
                                 |> Result.mapError Http.BadBody
                                 |> Result.mapError (Tuple.pair (Just (metadata, body_))))
         , timeout =
-            Nothing
-        , tracker =
             Nothing
         }
