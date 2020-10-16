@@ -221,6 +221,10 @@ headerIsCsrf :: F.HeaderArg ElmDatatype -> Bool
 headerIsCsrf header =
     (F.unPathSegment $ header ^. F.headerArg . F.argName) == (T.pack headerNameXsrfBuster)
 
+headerIsIfNoneMatch :: F.HeaderArg ElmDatatype -> Bool
+headerIsIfNoneMatch header =
+    (T.toLower . F.unPathSegment $ header ^. F.headerArg . F.argName) == "if-none-match"
+
 mkTypeSignature :: ElmOptions -> F.Req ElmDatatype -> Doc
 mkTypeSignature opts request =
   (hsep . punctuate " ->" . concat)
@@ -244,7 +248,9 @@ mkTypeSignature opts request =
     headerTypes :: [Doc]
     headerTypes =
       [ header ^. F.headerArg . F.argType . to elmTypeRef
-      | header <- request ^. F.reqHeaders, not $ headerIsCsrf header
+      | header <- request ^. F.reqHeaders
+      , not $ headerIsCsrf header
+      , not $ headerIsIfNoneMatch header
       ]
 
     urlCaptureTypes :: [Doc]
@@ -304,7 +310,9 @@ mkArgs opts request =
         Static _ -> []
     , -- Headers
       [ elmHeaderArg header
-      | header <- request ^. F.reqHeaders, not $ headerIsCsrf header
+      | header <- request ^. F.reqHeaders
+      , not $ headerIsCsrf header
+      , not $ headerIsIfNoneMatch header
       ]
     , -- URL Captures
       [ elmCaptureArg segment
@@ -399,6 +407,7 @@ mkRequest opts request =
               then dquotes "True"
               else parens (toStringSrc "" opts (header ^. F.headerArg . F.argType) <> headerArgName)
         | header <- request ^. F.reqHeaders
+        , not $ headerIsIfNoneMatch header
         , headerName <- [header ^. F.headerArg . F.argName . to (stext . F.unPathSegment)]
         , headerArgName <- [elmHeaderArg header]
         ]
